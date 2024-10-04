@@ -17,14 +17,22 @@ namespace Camera_Test_Suite
         public string Vendor
         { get; set; }
 
-        public string MqttTopic
+        public List<string> MqttTopics
         { get; set; }
 
-        public Camera (string cameraName, string cameraVendor, string mqttTopic)
+        public OccupancyDataClass OccupancyData
+        { get; set; }
+
+        public string LastMqtt
+        { get; set; }
+
+        public Camera (string cameraName, string cameraVendor, List<string> topicList, OccupancyDataClass occupancyData, string lastMqtt)
         {
             Name = cameraName;
             Vendor = cameraVendor;
-            MqttTopic = mqttTopic;
+            MqttTopics = topicList;
+            OccupancyData = occupancyData;
+            LastMqtt = lastMqtt;
         }
 
     }

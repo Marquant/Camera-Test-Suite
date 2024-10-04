@@ -43,7 +43,10 @@ namespace Camera_Test_Suite
 
             if (camera1NameBox.Text != "")
             {
-                camera = new Camera(camera1NameBox.Text, camera1Dropdown.Text, camera1MqttTopicBox.Text);
+                OccupancyDataClass emptyClass = new OccupancyDataClass("Dummy", 0, 0);
+                List<string> dummyString = new List<string>();
+                dummyString.Add(null);
+                camera = new Camera(camera1NameBox.Text, camera1Dropdown.Text, dummyString, emptyClass, "Dummy");
             }
         }
     }

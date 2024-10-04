@@ -35,13 +35,10 @@ namespace Camera_Test_Suite
         public int typeOfTest; //1 = Occupancy, 2 = Line crossing, 3 = Crossline counting
         List<Camera> cameraList = new List<Camera>();
 
-        List<OccupancyDataClass> occupancyData = new List<OccupancyDataClass>();
-        List<int> deviations = new List<int>();
         int voteDescisions = 0;
         int eventsCollected = 0;
         int inconclusivesCollected = 0;
         bool testRunning = false;
-        List<string> lastMQTT = new List<string>();
         Stopwatch elapsedStopwatch = new Stopwatch();
         Timer elapsedTimer = new Timer();
 
@@ -118,13 +115,17 @@ namespace Camera_Test_Suite
             //Parse MQTT and save to correct camera as last MQTT msg
             foreach (Camera camera in cameraList)
             {
-                //Check if topic matches camera topic
-                if (camera.MqttTopic == e.Topic)
+                //Iterate mqtt topics in camera
+                foreach (string mqttTopic in camera.MqttTopics)
                 {
-                    //Save MQTT data to correct camera
-                    lastMQTT[cameraList.IndexOf(camera)] = hiddenLabel.Text;
-
+                    //Check if topic matches camera topic
+                    if (mqttTopic == e.Topic)
+                    {
+                        //Save MQTT data to correct camera
+                        camera.LastMqtt = hiddenLabel.Text;
+                    }
                 }
+
             }
 
         }
@@ -200,9 +201,6 @@ namespace Camera_Test_Suite
         {
 
             //Clear and reset deviations and mqtt list
-            lastMQTT.Clear();
-            deviations.Clear();
-            occupancyData.Clear();
             occupancyCameraPanel.Controls.Clear();
 
             //Defint vars for spacing
@@ -211,42 +209,26 @@ namespace Camera_Test_Suite
             int height = 400;
             int currentHeight = 15;
 
-            //Subscribe to each topic and add elements in datalists
             foreach (Camera camera in cameraList)
             {
-                if (camera.MqttTopic != null)
+
+                //Add camera panel to correct test panel
+                if (typeOfTest == 1)
                 {
-                    //Subscribe
-                    mqttClient.Subscribe(new string[] { camera.MqttTopic }, new byte[] { MqttMsgBase.QOS_LEVEL_EXACTLY_ONCE });
-                    mqttLogWindow.MqttLogMsg("Subscribed to: " + camera.MqttTopic);
+                    Panel tempPanel = addCameraElement(camera);
+                    occupancyCameraPanel.Controls.Add(tempPanel);
+                    tempPanel.BringToFront();
+                    tempPanel.Location = new Point((left * horizontal) + 10, currentHeight);
+                }
 
-                    //Add camera panel to correct test panel
-                    if (typeOfTest == 1)
-                    {
-                        Panel tempPanel = addCameraElement(camera);
-                        occupancyCameraPanel.Controls.Add(tempPanel);
-                        tempPanel.BringToFront();
-                        tempPanel.Location = new Point((left * horizontal) + 10, currentHeight);
-                    }
+                //Add horizontal plane
+                horizontal++;
 
-                    //Add horizontal plane
-                    horizontal++;
-
-                    //Check if reached limit, then add new row
-                    if (horizontal == 4)
-                    {
-                        currentHeight = currentHeight + height;
-                        horizontal = 0;
-                    }
-
-                    //Setup lists
-                    lastMQTT.Add("Dummy");
-                    deviations.Add(0);
-
-                    //Fill occupancylist with dummy data
-                    OccupancyDataClass tempObject = new OccupancyDataClass("Dummy", 0);
-                    occupancyData.Add(tempObject);
-
+                //Check if reached limit, then add new row
+                if (horizontal == 4)
+                {
+                    currentHeight = currentHeight + height;
+                    horizontal = 0;
                 }
             }
 
@@ -263,10 +245,22 @@ namespace Camera_Test_Suite
             cameraPanel.BorderStyle = BorderStyle.FixedSingle; //Set borderstyle
             cameraPanel.Location = new Point(14, 17);
 
-            Label cameraNameLabel = new Label(); //Create name label
-            cameraPanel.Controls.Add(cameraNameLabel); //Add name label to panel
-            cameraNameLabel.Location = new Point(23, 0); //Set position
-            cameraNameLabel.Text = camera.Name; //Set text of name label
+            Button mqttControlBtn = new Button(); //Create button for mqtt control
+            cameraPanel.Controls.Add(mqttControlBtn); //Add name label to panel
+            mqttControlBtn.Location = new Point(23, 60); //Set position
+            mqttControlBtn.Width = 150;
+            mqttControlBtn.Text = "MQTT Topics"; //Set text of name label
+            mqttControlBtn.Click += (sender, EventArgs) => { ShowMqttTopics(sender, EventArgs, camera, mqttClient, mqttLogWindow); };
+
+            Label topicLabel = new Label(); //Add label for mqtt text
+            cameraPanel.Controls.Add(topicLabel); //Add to panel
+            topicLabel.Location = new Point(23, 85); //Set position
+            topicLabel.Text = "Subscribed topics:"; //Set text
+
+            ListBox cameraTopics = new ListBox(); //Add listbox for subscribed topics
+            cameraPanel.Controls.Add(cameraTopics); //Add to panel
+            cameraTopics.Location = new Point(23, 110); //Set position
+            cameraTopics.Size = new Size(150, 150);
 
             Label nameLabel = new Label(); //Add label for screenshot text
             cameraPanel.Controls.Add(nameLabel); //Add to panel
@@ -319,6 +313,13 @@ namespace Camera_Test_Suite
             }
 
             return cameraPanel;
+        }
+
+        //Shows window for handling topics for specific camera
+        private void ShowMqttTopics(object sender, EventArgs e, Camera camera, MqttClient mqttClient, MqttLog mqttLogWindow)
+        {
+            MqttTopic mqttForm = new MqttTopic(camera, mqttClient, mqttLogWindow);
+            mqttForm.ShowDialog();
         }
 
 
@@ -406,7 +407,7 @@ namespace Camera_Test_Suite
                 int id = cameraList.IndexOf(camera);
 
                 //Fetch latest MQTT message and parse
-                if (lastMQTT[id] == "Dummy")
+                if (camera.LastMqtt == "Dummy")
                 {
                     testInvalidated = true;
                 }
@@ -415,12 +416,16 @@ namespace Camera_Test_Suite
                 if (camera.Vendor == "Axis" && !testInvalidated)
                 {
                     //Axis is vendor, use parsing class
-                    occupancyData[id] = vendorParser.ParseAxisOccupancy(lastMQTT[id]);
+                    OccupancyDataClass axisParser = vendorParser.ParseAxisOccupancy(camera.LastMqtt);
+                    cameraList[id].OccupancyData.Total = axisParser.Total;
+                    cameraList[id].OccupancyData.Scenario = axisParser.Scenario;
                 }
                 else if (camera.Vendor == "Bosch" && !testInvalidated)
                 {
                     //Vendor is Bosch, parse
-                    occupancyData[id] = vendorParser.ParseBoschOccupancy(lastMQTT[id]);
+                    OccupancyDataClass boschParser = vendorParser.ParseBoschOccupancy(camera.LastMqtt);
+                    cameraList[id].OccupancyData.Total = boschParser.Total;
+                    cameraList[id].OccupancyData.Scenario = boschParser.Scenario;
                 }
 
             }
@@ -440,15 +445,15 @@ namespace Camera_Test_Suite
                 foreach (Camera camera in cameraList)
                 {
                     int id = cameraList.IndexOf(camera);
-                    if (occupancyData[id].Scenario != "Dummy")
+                    if (cameraList[id].OccupancyData.Scenario != "Dummy")
                     {
                         //Set count
                         string tempName = "cameraObjectCount" + id.ToString();
                         string tempPanel = "Camera" + id.ToString();
                         Panel panel = (Panel)occupancyCameraPanel.Controls[tempPanel];
-                        panel.Controls[tempName].Text = occupancyData[id].Total.ToString();
+                        panel.Controls[tempName].Text = cameraList[id].OccupancyData.Total.ToString();
 
-                        tempOccupancy.Add(occupancyData[id].Total);
+                        tempOccupancy.Add(cameraList[id].OccupancyData.Total);
 
                     }
                 }
@@ -487,9 +492,9 @@ namespace Camera_Test_Suite
                     foreach (Camera camera in cameraList)
                     {
                         int id = cameraList.IndexOf(camera);
-                        if (occupancyData[id].Total != mostCommonValue)
+                        if (cameraList[id].OccupancyData.Total != mostCommonValue)
                         {
-                            deviations[id]++; //Add 1 to deviations
+                            cameraList[id].OccupancyData.Deviations++; //Add 1 to deviations
 
                             //Check if round has deviated and if so decided by vote
                             if (!deviated)
@@ -504,7 +509,7 @@ namespace Camera_Test_Suite
                             string tempStatus = "CameraStatusLabel" + id.ToString();
                             string tempPanel = "Camera" + id.ToString();
                             Panel panel = (Panel)occupancyCameraPanel.Controls[tempPanel];
-                            panel.Controls[tempName].Text = deviations[id].ToString();
+                            panel.Controls[tempName].Text = cameraList[id].OccupancyData.Deviations.ToString();
 
                             //Set status to red
                             panel.Controls[tempStatus].ForeColor = Color.Red;

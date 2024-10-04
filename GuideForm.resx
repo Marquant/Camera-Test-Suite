@@ -117,6 +117,26 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
+  <data name="richTextBox2.Text" xml:space="preserve">
+    <value>One of the basic settings to setup first is the MQTT settings
+for each camera. 
+
+// AXIS //
+Log in to the web GUI and go to System -&gt; MQTT.
+Enable this and fill in the MQTT server settings.
+Don't mind the conditions and topics right now. 
+We'll get to that with each individual camera. 
+
+// BOSCH //
+Bosch automatically sends MQTT data for all scenarios defined
+in IVA. So we just need to set the server settings. This needs to
+be done in the Configuration Manager tool, by going to 
+Network -&gt; MQTT. Add a new MQTT broker and fill out the 
+required settings.
+
+
+</value>
+  </data>
   <data name="richTextBox1.Text" xml:space="preserve">
     <value>Test one occupancy scenario per camera, setup a scenario
 detecting specified objects. Test will run and evalute
