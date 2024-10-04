@@ -161,7 +161,6 @@ namespace Camera_Test_Suite
             // radioCrossing
             // 
             this.radioCrossing.AutoSize = true;
-            this.radioCrossing.Enabled = false;
             this.radioCrossing.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.radioCrossing.Location = new System.Drawing.Point(638, 297);
             this.radioCrossing.Name = "radioCrossing";
